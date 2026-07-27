@@ -392,21 +392,23 @@ const LEGACY_KEYS: Record<Granularity, keyof LegacyPeriodicNotes> = {
 };
 
 /**
- * Builds the configuration from what the vault already has.
- * Priority: Periodic Notes, then core Daily Notes, then defaults.
+ * Builds configuration from what the vault already has.
+ * Priority: Periodic Notes, then core Daily Notes.
  *
- * This is what makes migration free: after importing, existing notes still
- * resolve to the same files.
+ * Only periods actually present in the legacy configuration are returned.
+ * Periods with no legacy counterpart are omitted rather than filled with
+ * defaults, so importing never overwrites settings the user configured here
+ * for periods those older plugins never supported.
  */
 export function importLegacyConfig(
   daily: LegacyDailyNotes | null,
   periodic: LegacyPeriodicNotes | null
-): Record<Granularity, PeriodConfig> {
-  const out = {} as Record<Granularity, PeriodConfig>;
+): Partial<Record<Granularity, PeriodConfig>> {
+  const out: Partial<Record<Granularity, PeriodConfig>> = {};
 
   for (const g of GRANULARITIES) {
     const legacy = periodic ? periodic[LEGACY_KEYS[g]] : undefined;
-    if (legacy && (legacy.format || legacy.folder || legacy.enabled)) {
+    if (legacy && (legacy.format || legacy.folder || legacy.enabled !== undefined)) {
       out[g] = {
         enabled: legacy.enabled !== false,
         format: legacy.format || DEFAULT_FORMATS[g],
@@ -422,14 +424,7 @@ export function importLegacyConfig(
         folder: daily.folder || "",
         template: daily.template || "",
       };
-      continue;
     }
-    out[g] = {
-      enabled: g === "day" || g === "week",
-      format: DEFAULT_FORMATS[g],
-      folder: "",
-      template: "",
-    };
   }
   return out;
 }

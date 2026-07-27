@@ -244,39 +244,50 @@ describe("legacy import", () => {
       daily: { enabled: true, format: "YYYY-MM-DD", folder: "Diary" },
       weekly: { enabled: true, format: "gggg-[W]ww", folder: "Weeks" },
     });
-    assert.equal(out.day.folder, "Diary");
-    assert.equal(out.week.format, "gggg-[W]ww");
-    assert.equal(out.week.folder, "Weeks");
+    assert.equal(out.day!.folder, "Diary");
+    assert.equal(out.week!.format, "gggg-[W]ww");
+    assert.equal(out.week!.folder, "Weeks");
   });
 
   test("falls back to core Daily Notes", () => {
     const out = importLegacyConfig({ format: "DD-MM-YYYY", folder: "Journal" }, null);
-    assert.equal(out.day.format, "DD-MM-YYYY");
-    assert.equal(out.day.folder, "Journal");
+    assert.equal(out.day!.format, "DD-MM-YYYY");
+    assert.equal(out.day!.folder, "Journal");
   });
 
-  test("with nothing to import, uses the defaults", () => {
-    const out = importLegacyConfig(null, null);
-    assert.equal(out.day.format, "YYYY-MM-DD");
-    assert.equal(out.week.format, "GGGG-[W]WW");
-    assert.equal(out.quarter.format, "YYYY-[Q]Q");
-    assert.ok(out.day.enabled);
-    assert.ok(out.week.enabled);
-    // periods with no legacy equivalent arrive switched off
-    assert.ok(!out.month.enabled);
-    assert.ok(!out.quarter.enabled);
-    assert.ok(!out.year.enabled);
+  test("with nothing to import, returns nothing", () => {
+    assert.deepEqual(importLegacyConfig(null, null), {});
   });
 
   test("respects an explicit enabled:false", () => {
     const out = importLegacyConfig(null, { weekly: { enabled: false, format: "gggg-[W]ww" } });
-    assert.equal(out.week.enabled, false);
+    assert.equal(out.week!.enabled, false);
   });
 
   test("an imported broken format is still caught by the validator", () => {
     const out = importLegacyConfig(null, { weekly: { enabled: true, format: "YYYY-[W]WW" } });
-    const issues = validateFormat("week", out.week.format);
+    const issues = validateFormat("week", out.week!.format);
     assert.ok(issues.some((i) => i.level === "error"));
     assert.equal(issues[0].suggestion, "GGGG-[W]WW");
+  });
+
+  // Regression: importing used to fill every period with defaults, wiping the
+  // folder a user had configured for periods the old plugins never supported.
+  test("periods absent from the legacy config are omitted, not defaulted", () => {
+    const out = importLegacyConfig(null, {
+      daily: { enabled: true, format: "YYYY-MM-DD", folder: "Journal/Daily" },
+      weekly: { enabled: true, format: "GGGG-[W]WW", folder: "Journal/Weekly" },
+    });
+    assert.ok(out.day, "day comes from the legacy config");
+    assert.ok(out.week, "week comes from the legacy config");
+    assert.equal(out.month, undefined);
+    assert.equal(out.quarter, undefined);
+    assert.equal(out.year, undefined);
+    assert.deepEqual(Object.keys(out).sort(), ["day", "week"]);
+  });
+
+  test("core Daily Notes alone imports only the day", () => {
+    const out = importLegacyConfig({ format: "DD-MM-YYYY", folder: "Journal" }, null);
+    assert.deepEqual(Object.keys(out), ["day"]);
   });
 });

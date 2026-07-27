@@ -298,6 +298,8 @@ export default class PeriodCalendarPlugin extends Plugin {
     let count = 0;
     for (const g of GRANULARITIES) {
       const src = imported[g];
+      // periods absent from the legacy config are left untouched
+      if (!src) continue;
       const cur = this.settings.periods[g];
       if (src.format !== cur.format || src.folder !== cur.folder) count++;
       this.settings.periods[g] = { ...cur, ...src };
