@@ -56,9 +56,17 @@ That silent collision is what produces "unable to create new file" and duplicate
 
 ---
 
+## Coming from Periodic Notes?
+
+If you use Periodic Notes for monthly, quarterly or yearly notes, you have probably wanted a calendar that can actually open them. That integration is the single most requested thing across both plugins' issue trackers, and it is what this one is built around: **the month name, the year, the quarter button and the week number are all clickable**, not just the days.
+
+You also get the week format checked. Periodic Notes will happily accept `YYYY-[W]WW`, and that quietly writes the wrong filename every January — see the section above.
+
 ## Migrating from Calendar or Periodic Notes
 
 Go to **Settings → Period Calendar → Migration** and press **Import**. It reads the configuration those plugins already store in your vault and copies it over, so nothing moves and no note is orphaned.
+
+Periods you configured here that the older plugins never supported — monthly, quarterly, yearly — are left untouched by the import. It only brings over what actually exists on the other side.
 
 If the imported format has one of the problems described above, it gets flagged right there with the fix.
 
