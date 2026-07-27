@@ -7,8 +7,9 @@ import {
   Notice,
   WorkspaceLeaf,
   normalizePath,
-  moment,
 } from "obsidian";
+
+import { now } from "./obsidian-moment.ts";
 
 import {
   GRANULARITIES,
@@ -145,7 +146,7 @@ export default class PeriodCalendarPlugin extends Plugin {
 
   // -------------------------------------------------------------------------
   private now(): MomentLike {
-    return moment();
+    return now();
   }
 
   async loadSettings() {

@@ -1,5 +1,6 @@
-import { ItemView, WorkspaceLeaf, moment, Menu } from "obsidian";
+import { ItemView, WorkspaceLeaf, Menu } from "obsidian";
 import type PeriodCalendarPlugin from "./main.ts";
+import { now } from "./obsidian-moment.ts";
 import {
   startOfPeriod,
   shiftPeriod,
@@ -20,7 +21,7 @@ export class CalendarView extends ItemView {
   constructor(leaf: WorkspaceLeaf, plugin: PeriodCalendarPlugin) {
     super(leaf);
     this.plugin = plugin;
-    this.cursor = moment();
+    this.cursor = now();
   }
 
   getViewType() {
@@ -42,7 +43,7 @@ export class CalendarView extends ItemView {
   }
 
   public goToday() {
-    this.cursor = moment();
+    this.cursor = now();
     this.render();
   }
 
@@ -103,7 +104,7 @@ export class CalendarView extends ItemView {
     const monthStart = startOfPeriod(this.cursor, "month", s.week);
     const monthEnd = startOfPeriod(this.cursor, "month", s.week).endOf("month");
     let cursor = startOfPeriod(monthStart, "week", s.week);
-    const today = moment();
+    const today = now();
 
     // six rows cover any month, so the grid never jumps height between months
     for (let row = 0; row < 6; row++) {

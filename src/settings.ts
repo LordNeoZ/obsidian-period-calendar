@@ -89,7 +89,9 @@ export class PeriodCalendarSettingTab extends PluginSettingTab {
 
     if (this.plugin.settings.week.mode === "locale") {
       new Setting(containerEl).setName("Start week on").addDropdown((d) => {
-        WEEKDAYS.forEach((w, i) => d.addOption(String(i), w));
+        WEEKDAYS.forEach((w, i) => {
+          d.addOption(String(i), w);
+        });
         d.setValue(String(this.plugin.settings.week.startOfWeek)).onChange((v) => {
           this.plugin.settings.week.startOfWeek = Number(v);
           this.save();
