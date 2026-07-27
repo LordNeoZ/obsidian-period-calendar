@@ -10,7 +10,7 @@ import type { MomentFactory, MomentLike } from "./periods.ts";
  * boundary is crossed exactly once, here, and the rest of the plugin consumes
  * the narrow `MomentLike` surface defined in periods.ts.
  */
-// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- obsidian.moment is declared as `typeof import("moment")`, which resolves to any without moment's own types present; this is the single place where that untyped boundary is crossed, and everything downstream uses MomentLike
 const factory: MomentFactory = moment as unknown as MomentFactory;
 
 /** Current date and time. */

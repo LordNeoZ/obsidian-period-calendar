@@ -1,6 +1,6 @@
 {
   "name": "obsidian-periods",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Calendar and periodic notes for Obsidian: day, week, month, quarter and year, with correct ISO week handling.",
   "private": true,
   "type": "module",
