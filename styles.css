@@ -1,0 +1,178 @@
+/* Period Calendar
+   Todo se apoya en las variables del tema del usuario: el plugin no impone
+   colores propios, asi se ve nativo en cualquier tema claro u oscuro. */
+
+.period-calendar {
+  padding: 8px 10px 12px;
+  user-select: none;
+}
+
+/* ---------- cabecera ---------- */
+.period-calendar .pc-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.period-calendar .pc-nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+  order: 2;
+}
+
+.period-calendar .pc-nav-btn {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border-radius: var(--radius-s);
+  font-size: var(--font-ui-medium);
+  line-height: 1.2;
+}
+.period-calendar .pc-nav-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.period-calendar .pc-title {
+  order: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--font-ui-large);
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+
+.period-calendar .pc-title-part {
+  border-radius: var(--radius-s);
+  padding: 0 4px;
+}
+.period-calendar .pc-title-part:last-child {
+  color: var(--text-muted);
+  font-weight: var(--font-normal);
+}
+
+/* ---------- grilla ---------- */
+.period-calendar .pc-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.period-calendar .pc-grid th {
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-normal);
+  color: var(--text-faint);
+  padding: 4px 0;
+  text-align: center;
+}
+
+.period-calendar .pc-grid td {
+  text-align: center;
+  padding: 5px 0;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  border-radius: var(--radius-s);
+  position: relative;
+}
+
+/* columna de numero de semana */
+.period-calendar .pc-wk-head,
+.period-calendar .pc-wk {
+  width: 2.2em;
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  border-right: 1px solid var(--background-modifier-border);
+}
+
+.period-calendar .pc-outside {
+  color: var(--text-faint);
+  opacity: 0.55;
+}
+
+.period-calendar .pc-today {
+  font-weight: var(--font-bold);
+  color: var(--text-accent);
+}
+
+/* ---------- interaccion ---------- */
+.period-calendar .pc-clickable {
+  cursor: pointer;
+}
+.period-calendar .pc-clickable:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* un periodo desactivado no debe parecer clickeable */
+.period-calendar .pc-disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.period-calendar .pc-dot {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-accent);
+  margin: 1px auto 0;
+}
+
+.period-calendar .pc-outside .pc-dot {
+  opacity: 0.5;
+}
+
+/* ---------- validacion de formato en settings ---------- */
+.pc-fmt-preview {
+  color: var(--text-muted);
+}
+.pc-fmt-error {
+  color: var(--text-error);
+  margin-top: 4px;
+}
+.pc-fmt-warning {
+  color: var(--text-warning);
+  margin-top: 4px;
+}
+
+/* el formato sugerido, para que el boton de la varita se entienda solo */
+.pc-fmt-hint {
+  font-family: var(--font-monospace);
+  color: var(--text-accent);
+  white-space: nowrap;
+}
+
+/* el boton de correccion solo se muestra cuando hay algo que corregir */
+.pc-hidden {
+  display: none !important;
+}
+
+/* ---------- barra de trimestre / anio ---------- */
+.period-calendar .pc-bar {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.period-calendar .pc-bar-btn {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--background-modifier-border);
+  box-shadow: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 3px 0;
+  border-radius: var(--radius-s);
+  font-size: var(--font-ui-smaller);
+}
+.period-calendar .pc-bar-btn:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
