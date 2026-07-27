@@ -58,6 +58,11 @@ export class PeriodCalendarSettingTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
+  /** Persists without blocking the UI handler that triggered it. */
+  private save() {
+    void this.plugin.saveSettings();
+  }
+
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
@@ -75,26 +80,22 @@ export class PeriodCalendarSettingTab extends PluginSettingTab {
           .addOption("iso", "ISO 8601 (recommended)")
           .addOption("locale", "Locale")
           .setValue(this.plugin.settings.week.mode)
-          .onChange(async (v) => {
+          .onChange((v) => {
             this.plugin.settings.week.mode = v as "iso" | "locale";
-            await this.plugin.saveSettings();
+            this.save();
             this.display();
           })
       );
 
     if (this.plugin.settings.week.mode === "locale") {
-      new Setting(containerEl)
-        .setName("Start week on")
-        .addDropdown((d) => {
-          WEEKDAYS.forEach((w, i) => d.addOption(String(i), w));
-          d.setValue(String(this.plugin.settings.week.startOfWeek)).onChange(
-            async (v) => {
-              this.plugin.settings.week.startOfWeek = Number(v);
-              await this.plugin.saveSettings();
-              this.plugin.refreshViews();
-            }
-          );
+      new Setting(containerEl).setName("Start week on").addDropdown((d) => {
+        WEEKDAYS.forEach((w, i) => d.addOption(String(i), w));
+        d.setValue(String(this.plugin.settings.week.startOfWeek)).onChange((v) => {
+          this.plugin.settings.week.startOfWeek = Number(v);
+          this.save();
+          this.plugin.refreshViews();
         });
+      });
     }
 
     for (const g of GRANULARITIES) {
@@ -102,15 +103,13 @@ export class PeriodCalendarSettingTab extends PluginSettingTab {
 
       new Setting(containerEl).setName(`${LABELS[g]} notes`).setHeading();
 
-      new Setting(containerEl)
-        .setName("Enabled")
-        .addToggle((t) =>
-          t.setValue(cfg.enabled).onChange(async (v) => {
-            cfg.enabled = v;
-            await this.plugin.saveSettings();
-            this.plugin.refreshViews();
-          })
-        );
+      new Setting(containerEl).setName("Enabled").addToggle((t) =>
+        t.setValue(cfg.enabled).onChange((v) => {
+          cfg.enabled = v;
+          this.save();
+          this.plugin.refreshViews();
+        })
+      );
 
       if (!cfg.enabled) continue;
 
@@ -124,38 +123,38 @@ export class PeriodCalendarSettingTab extends PluginSettingTab {
       let fixEl: HTMLElement | null = null;
 
       const refreshFix = () => {
-        const issues = validateFormat(g, cfg.format);
-        const fixable = issues.find(
+        const fixable = validateFormat(g, cfg.format).find(
           (i) => i.suggestion && i.suggestion !== cfg.format
         );
         pendingFix = fixable?.suggestion ?? null;
         if (!fixEl) return;
-        fixEl.toggleClass("pc-hidden", pendingFix === null);
-        fixEl.setAttribute(
-          "aria-label",
-          pendingFix ? `Fix: use ${pendingFix}` : ""
-        );
+        if (pendingFix) {
+          fixEl.show();
+          fixEl.setAttribute("aria-label", `Fix: use ${pendingFix}`);
+        } else {
+          fixEl.hide();
+        }
       };
 
       formatSetting.addText((t) =>
         t
           .setPlaceholder(DEFAULT_FORMATS[g])
           .setValue(cfg.format)
-          .onChange(async (v) => {
+          .onChange((v) => {
             cfg.format = v;
             formatSetting.setDesc(this.formatDesc(g, v));
             refreshFix();
-            await this.plugin.saveSettings();
+            this.save();
             this.plugin.refreshViews();
           })
       );
 
       formatSetting.addExtraButton((b) => {
         fixEl = b.extraSettingsEl;
-        b.setIcon("wand").onClick(async () => {
+        b.setIcon("wand").onClick(() => {
           if (!pendingFix) return;
           cfg.format = pendingFix;
-          await this.plugin.saveSettings();
+          this.save();
           this.plugin.refreshViews();
           new Notice(`Format set to ${cfg.format}`);
           this.display();
@@ -171,9 +170,9 @@ export class PeriodCalendarSettingTab extends PluginSettingTab {
           t
             .setPlaceholder("Journal/Daily")
             .setValue(cfg.folder)
-            .onChange(async (v) => {
+            .onChange((v) => {
               cfg.folder = v;
-              await this.plugin.saveSettings();
+              this.save();
             })
         );
 
@@ -184,80 +183,74 @@ export class PeriodCalendarSettingTab extends PluginSettingTab {
           t
             .setPlaceholder("Templates/Daily.md")
             .setValue(cfg.template)
-            .onChange(async (v) => {
+            .onChange((v) => {
               cfg.template = v;
-              await this.plugin.saveSettings();
+              this.save();
             })
         );
     }
 
-    // ---- comportamiento ----
     new Setting(containerEl).setName("Behaviour").setHeading();
 
-    new Setting(containerEl)
-      .setName("Open daily note on startup")
-      .addToggle((t) =>
-        t.setValue(this.plugin.settings.openDailyOnStartup).onChange(async (v) => {
-          this.plugin.settings.openDailyOnStartup = v;
-          await this.plugin.saveSettings();
-        })
-      );
+    new Setting(containerEl).setName("Open daily note on startup").addToggle((t) =>
+      t.setValue(this.plugin.settings.openDailyOnStartup).onChange((v) => {
+        this.plugin.settings.openDailyOnStartup = v;
+        this.save();
+      })
+    );
 
     new Setting(containerEl)
       .setName("Confirm before creating a note")
       .setDesc("Ask first when clicking a period that has no note yet.")
       .addToggle((t) =>
-        t.setValue(this.plugin.settings.confirmBeforeCreate).onChange(async (v) => {
+        t.setValue(this.plugin.settings.confirmBeforeCreate).onChange((v) => {
           this.plugin.settings.confirmBeforeCreate = v;
-          await this.plugin.saveSettings();
+          this.save();
         })
       );
 
-    new Setting(containerEl)
-      .setName("Show week numbers")
-      .addToggle((t) =>
-        t.setValue(this.plugin.settings.showWeekNumbers).onChange(async (v) => {
-          this.plugin.settings.showWeekNumbers = v;
-          await this.plugin.saveSettings();
-          this.plugin.refreshViews();
-        })
-      );
+    new Setting(containerEl).setName("Show week numbers").addToggle((t) =>
+      t.setValue(this.plugin.settings.showWeekNumbers).onChange((v) => {
+        this.plugin.settings.showWeekNumbers = v;
+        this.save();
+        this.plugin.refreshViews();
+      })
+    );
 
-    new Setting(containerEl)
-      .setName("Show a dot on days with notes")
-      .addToggle((t) =>
-        t.setValue(this.plugin.settings.showDots).onChange(async (v) => {
-          this.plugin.settings.showDots = v;
-          await this.plugin.saveSettings();
-          this.plugin.refreshViews();
-        })
-      );
+    new Setting(containerEl).setName("Show a dot on days with notes").addToggle((t) =>
+      t.setValue(this.plugin.settings.showDots).onChange((v) => {
+        this.plugin.settings.showDots = v;
+        this.save();
+        this.plugin.refreshViews();
+      })
+    );
 
-    // ---- migracion ----
     new Setting(containerEl).setName("Migration").setHeading();
 
     new Setting(containerEl)
       .setName("Import from Periodic Notes / Daily Notes")
       .setDesc(
         "Reads the configuration already stored in this vault and copies it " +
-          "here, so your notes keep resolving to the same files."
+          "here, so your notes keep resolving to the same files. Periods with " +
+          "no legacy counterpart are left untouched."
       )
       .addButton((b) =>
-        b.setButtonText("Import").onClick(async () => {
-          const n = await this.plugin.importLegacy();
-          new Notice(
-            n > 0
-              ? `Imported settings for ${n} period${n === 1 ? "" : "s"}.`
-              : "No Periodic Notes or Daily Notes configuration found."
-          );
-          this.display();
+        b.setButtonText("Import").onClick(() => {
+          void this.plugin.importLegacy().then((n) => {
+            new Notice(
+              n > 0
+                ? `Imported settings for ${n} period${n === 1 ? "" : "s"}.`
+                : "Nothing to import: no Periodic Notes or Daily Notes configuration found."
+            );
+            this.display();
+          });
         })
       );
   }
 
   /** Format field description: preview plus any validation messages. */
   private formatDesc(g: Granularity, format: string): DocumentFragment {
-    const frag = document.createDocumentFragment();
+    const frag = createFragment();
     const preview = this.plugin.previewFormat(g, format);
 
     const line = frag.createDiv({ cls: "pc-fmt-preview" });

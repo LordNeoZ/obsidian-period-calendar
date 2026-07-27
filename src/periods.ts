@@ -54,24 +54,39 @@ export const DEFAULT_FORMATS: Record<Granularity, string> = {
   year: "YYYY",
 };
 
+/**
+ * Units for startOf/endOf. `isoWeek` is valid here but NOT as a duration:
+ * moment has no "add one isoWeek", only "add one week".
+ */
+export type BoundaryUnit =
+  | "day"
+  | "week"
+  | "isoWeek"
+  | "month"
+  | "quarter"
+  | "year";
+
+/** Units valid for add/subtract. */
+export type DurationUnit = "day" | "week" | "month" | "quarter" | "year";
+
 /** Minimal moment surface, to avoid depending on the full type. */
 export interface MomentLike {
   clone(): MomentLike;
   format(fmt: string): string;
-  startOf(unit: any): MomentLike;
-  endOf(unit: any): MomentLike;
-  add(n: number, unit: any): MomentLike;
-  subtract(n: number, unit: any): MomentLike;
+  startOf(unit: BoundaryUnit): MomentLike;
+  endOf(unit: BoundaryUnit): MomentLike;
+  add(n: number, unit: DurationUnit): MomentLike;
+  subtract(n: number, unit: DurationUnit): MomentLike;
   isValid(): boolean;
-  isSame(other: MomentLike, unit?: any): boolean;
-  isoWeekday(n?: number): any;
-  day(n?: number): any;
-  toDate(): Date;
+  /** day of the week, 0 = Sunday */
+  day(): number;
 }
 
-export type MomentFactory = {
-  (input?: any, format?: any, strict?: boolean): MomentLike;
-};
+export type MomentFactory = (
+  input?: string,
+  format?: string,
+  strict?: boolean
+) => MomentLike;
 
 // ---------------------------------------------------------------------------
 // Format validation
@@ -253,7 +268,7 @@ export function validateFormat(
 // Period arithmetic
 // ---------------------------------------------------------------------------
 
-function unitFor(granularity: Granularity, weekMode: WeekMode): string {
+function unitFor(granularity: Granularity, weekMode: WeekMode): BoundaryUnit {
   if (granularity === "week") return weekMode === "iso" ? "isoWeek" : "week";
   return granularity;
 }
@@ -267,11 +282,10 @@ export function startOfPeriod(
     // moment reads the global locale; the configured start day is applied
     // here instead so the global locale is left alone.
     const d = date.clone();
-    const current = d.day() as number;
-    const diff = (current - week.startOfWeek + 7) % 7;
+    const diff = (d.day() - week.startOfWeek + 7) % 7;
     return d.subtract(diff, "day").startOf("day");
   }
-  return date.clone().startOf(unitFor(granularity, week.mode) as any);
+  return date.clone().startOf(unitFor(granularity, week.mode));
 }
 
 export function endOfPeriod(
@@ -282,7 +296,7 @@ export function endOfPeriod(
   if (granularity === "week" && week.mode === "locale") {
     return startOfPeriod(date, granularity, week).add(6, "day").endOf("day");
   }
-  return date.clone().endOf(unitFor(granularity, week.mode) as any);
+  return date.clone().endOf(unitFor(granularity, week.mode));
 }
 
 export function shiftPeriod(
@@ -292,10 +306,8 @@ export function shiftPeriod(
   week: WeekSettings
 ): MomentLike {
   const base = startOfPeriod(date, granularity, week);
-  const unit = granularity === "week" ? "week" : granularity;
-  return delta >= 0
-    ? base.add(delta, unit as any)
-    : base.subtract(-delta, unit as any);
+  const unit: DurationUnit = granularity === "week" ? "week" : granularity;
+  return delta >= 0 ? base.add(delta, unit) : base.subtract(-delta, unit);
 }
 
 export function isSamePeriod(

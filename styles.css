@@ -147,10 +147,6 @@
   white-space: nowrap;
 }
 
-/* el boton de correccion solo se muestra cuando hay algo que corregir */
-.pc-hidden {
-  display: none !important;
-}
 
 /* ---------- barra de trimestre / anio ---------- */
 .period-calendar .pc-bar {

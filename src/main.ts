@@ -28,6 +28,7 @@ import {
   PeriodCalendarSettingTab,
   type PluginSettings,
 } from "./settings.ts";
+// PluginSettings is used both as a type and to shape loadData()'s result
 
 import { CalendarView, VIEW_TYPE } from "./view.ts";
 
@@ -99,7 +100,7 @@ export default class PeriodCalendarPlugin extends Plugin {
         name: `Open ${LABELS[g]} note`,
         checkCallback: (checking) => {
           if (!this.settings.periods[g].enabled) return false;
-          if (!checking) this.openPeriodNote(this.now(), g);
+          if (!checking) void this.openPeriodNote(this.now(), g);
           return true;
         },
       });
@@ -109,7 +110,10 @@ export default class PeriodCalendarPlugin extends Plugin {
         checkCallback: (checking) => {
           if (!this.settings.periods[g].enabled) return false;
           if (!checking) {
-            this.openPeriodNote(shiftPeriod(this.now(), g, 1, this.settings.week), g);
+            void this.openPeriodNote(
+              shiftPeriod(this.now(), g, 1, this.settings.week),
+              g
+            );
           }
           return true;
         },
@@ -120,16 +124,19 @@ export default class PeriodCalendarPlugin extends Plugin {
         checkCallback: (checking) => {
           if (!this.settings.periods[g].enabled) return false;
           if (!checking) {
-            this.openPeriodNote(shiftPeriod(this.now(), g, -1, this.settings.week), g);
+            void this.openPeriodNote(
+              shiftPeriod(this.now(), g, -1, this.settings.week),
+              g
+            );
           }
           return true;
         },
       });
     }
 
-    this.app.workspace.onLayoutReady(async () => {
+    this.app.workspace.onLayoutReady(() => {
       if (this.settings.openDailyOnStartup && this.settings.periods.day.enabled) {
-        await this.openPeriodNote(this.now(), "day");
+        void this.openPeriodNote(this.now(), "day");
       }
     });
   }
@@ -138,11 +145,11 @@ export default class PeriodCalendarPlugin extends Plugin {
 
   // -------------------------------------------------------------------------
   private now(): MomentLike {
-    return moment() as unknown as MomentLike;
+    return moment();
   }
 
   async loadSettings() {
-    const saved = await this.loadData();
+    const saved = (await this.loadData()) as Partial<PluginSettings> | null;
     this.settings = Object.assign(defaultSettings(), saved ?? {});
     // deep-merge periods so any added later never arrives undefined on upgrade
     const base = defaultSettings();
@@ -169,13 +176,13 @@ export default class PeriodCalendarPlugin extends Plugin {
   async activateView() {
     const existing = this.app.workspace.getLeavesOfType(VIEW_TYPE);
     if (existing.length > 0) {
-      this.app.workspace.revealLeaf(existing[0]);
+      await this.app.workspace.revealLeaf(existing[0]);
       return;
     }
     const leaf: WorkspaceLeaf | null = this.app.workspace.getRightLeaf(false);
     if (!leaf) return;
     await leaf.setViewState({ type: VIEW_TYPE, active: true });
-    this.app.workspace.revealLeaf(leaf);
+    await this.app.workspace.revealLeaf(leaf);
   }
 
   // -------------------------------------------------------------------------

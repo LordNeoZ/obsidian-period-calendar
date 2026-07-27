@@ -20,7 +20,7 @@ export class CalendarView extends ItemView {
   constructor(leaf: WorkspaceLeaf, plugin: PeriodCalendarPlugin) {
     super(leaf);
     this.plugin = plugin;
-    this.cursor = moment() as unknown as MomentLike;
+    this.cursor = moment();
   }
 
   getViewType() {
@@ -42,7 +42,7 @@ export class CalendarView extends ItemView {
   }
 
   public goToday() {
-    this.cursor = moment() as unknown as MomentLike;
+    this.cursor = moment();
     this.render();
   }
 
@@ -103,7 +103,7 @@ export class CalendarView extends ItemView {
     const monthStart = startOfPeriod(this.cursor, "month", s.week);
     const monthEnd = startOfPeriod(this.cursor, "month", s.week).endOf("month");
     let cursor = startOfPeriod(monthStart, "week", s.week);
-    const today = moment() as unknown as MomentLike;
+    const today = moment();
 
     // six rows cover any month, so the grid never jumps height between months
     for (let row = 0; row < 6; row++) {
@@ -178,16 +178,16 @@ export class CalendarView extends ItemView {
     }
     el.addClass("pc-clickable");
 
-    el.addEventListener("click", async (evt) => {
-      await this.plugin.openPeriodNote(getDate(), granularity, {
+    el.addEventListener("click", (evt) => {
+      void this.plugin.openPeriodNote(getDate(), granularity, {
         newLeaf: evt.ctrlKey || evt.metaKey,
       });
     });
 
-    el.addEventListener("auxclick", async (evt) => {
+    el.addEventListener("auxclick", (evt) => {
       if (evt.button === 1) {
         evt.preventDefault();
-        await this.plugin.openPeriodNote(getDate(), granularity, { newLeaf: true });
+        void this.plugin.openPeriodNote(getDate(), granularity, { newLeaf: true });
       }
     });
 
@@ -198,17 +198,19 @@ export class CalendarView extends ItemView {
         i
           .setTitle("Open in new tab")
           .setIcon("file-plus")
-          .onClick(() =>
-            this.plugin.openPeriodNote(getDate(), granularity, { newLeaf: true })
-          )
+          .onClick(() => {
+            void this.plugin.openPeriodNote(getDate(), granularity, {
+              newLeaf: true,
+            });
+          })
       );
       menu.addItem((i) =>
         i
           .setTitle("Copy note path")
           .setIcon("copy")
-          .onClick(async () => {
+          .onClick(() => {
             const p = this.plugin.pathFor(getDate(), granularity);
-            await navigator.clipboard.writeText(p);
+            void navigator.clipboard.writeText(p);
           })
       );
       menu.showAtMouseEvent(evt);
