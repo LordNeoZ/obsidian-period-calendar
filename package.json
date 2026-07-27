@@ -1,11 +1,11 @@
 {
   "name": "obsidian-periods",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "Calendar and periodic notes for Obsidian: day, week, month, quarter and year, with correct ISO week handling.",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "tsx --test test/periods.test.ts",
+    "test": "tsx --test test/periods.test.ts test/perf.test.ts",
     "build": "node esbuild.config.mjs production",
     "dev": "node esbuild.config.mjs"
   },

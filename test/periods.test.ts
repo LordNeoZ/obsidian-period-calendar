@@ -238,6 +238,61 @@ describe("filename parsing", () => {
   });
 });
 
+describe("date prefix followed by a title", () => {
+  const compact = cfg({ format: "YYYYMMDD" });
+
+  test("off by default: a title suffix is not accepted", () => {
+    assert.equal(parsePeriodFilename("20260727 Groceries", "day", compact, M), null);
+  });
+
+  test("compact date plus title", () => {
+    const d = parsePeriodFilename("20260727 Groceries", "day", compact, M, true);
+    assert.ok(d);
+    assert.equal(d!.format("YYYY-MM-DD"), "2026-07-27");
+  });
+
+  test("dashed date plus title", () => {
+    const d = parsePeriodFilename("2026-07-27 Meeting with Ana", "day", cfg(), M, true);
+    assert.ok(d);
+    assert.equal(d!.format("YYYY-MM-DD"), "2026-07-27");
+  });
+
+  test("accepts the separators people actually use", () => {
+    for (const sep of [" ", "-", "_", "."]) {
+      const name = `20260727${sep}Notes`;
+      const d = parsePeriodFilename(name, "day", compact, M, true);
+      assert.ok(d, `should parse with separator "${sep}"`);
+      assert.equal(d!.format("YYYY-MM-DD"), "2026-07-27");
+    }
+  });
+
+  test("a separator is required: trailing digits are not a title", () => {
+    assert.equal(parsePeriodFilename("202607271", "day", compact, M, true), null);
+  });
+
+  test("still rejects text that is not a date", () => {
+    assert.equal(parsePeriodFilename("Meeting notes", "day", cfg(), M, true), null);
+    assert.equal(parsePeriodFilename("Notes 2026", "day", cfg(), M, true), null);
+  });
+
+  test("still rejects impossible dates with a title", () => {
+    assert.equal(parsePeriodFilename("20260230 Nope", "day", compact, M, true), null);
+  });
+
+  test("the longest valid prefix wins", () => {
+    // "2026-07" alone would parse as a month; the day format must win here
+    const d = parsePeriodFilename("2026-07-27 - review", "day", cfg(), M, true);
+    assert.ok(d);
+    assert.equal(d!.format("YYYY-MM-DD"), "2026-07-27");
+  });
+
+  test("weekly notes with a title", () => {
+    const w = parsePeriodFilename("2026-W30 planning", "week", cfg({ format: "GGGG-[W]WW" }), M, true);
+    assert.ok(w);
+    assert.equal(w!.format("GGGG-[W]WW"), "2026-W30");
+  });
+});
+
 describe("legacy import", () => {
   test("prefers the Periodic Notes configuration when present", () => {
     const out = importLegacyConfig(null, {

@@ -1,7 +1,7 @@
 {
   "id": "period-calendar",
   "name": "Period Calendar",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "minAppVersion": "1.7.2",
   "description": "Calendar for daily, weekly, monthly, quarterly and yearly notes, with every period clickable. Imports your existing Periodic Notes or Daily Notes setup, and catches week formats that break filenames at the turn of the year.",
   "author": "Neito",

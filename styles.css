@@ -123,6 +123,14 @@
   margin: 1px auto 0;
 }
 
+/* en el titulo y en los botones el punto va al lado, no debajo */
+.period-calendar .pc-title-part .pc-dot,
+.period-calendar .pc-bar-btn .pc-dot {
+  display: inline-block;
+  margin: 0 0 0 4px;
+  vertical-align: middle;
+}
+
 .period-calendar .pc-outside .pc-dot {
   opacity: 0.5;
 }

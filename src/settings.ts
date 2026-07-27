@@ -9,6 +9,8 @@ import {
   type WeekSettings,
 } from "./periods.ts";
 
+export type OpenIn = "active" | "tab" | "split";
+
 export interface PluginSettings {
   periods: Record<Granularity, PeriodConfig>;
   week: WeekSettings;
@@ -16,6 +18,12 @@ export interface PluginSettings {
   showWeekNumbers: boolean;
   showDots: boolean;
   confirmBeforeCreate: boolean;
+  /** where a note opens when a period is clicked */
+  openIn: OpenIn;
+  /** treat "20260727 Groceries" as that day's note */
+  matchTitleSuffix: boolean;
+  /** frontmatter property holding the date; empty disables the lookup */
+  frontmatterProperty: string;
 }
 
 const LABELS: Record<Granularity, string> = {
@@ -43,6 +51,9 @@ export function defaultSettings(): PluginSettings {
     showWeekNumbers: true,
     showDots: true,
     confirmBeforeCreate: false,
+    openIn: "active",
+    matchTitleSuffix: false,
+    frontmatterProperty: "",
   };
 }
 
@@ -194,6 +205,24 @@ export class PeriodCalendarSettingTab extends PluginSettingTab {
 
     new Setting(containerEl).setName("Behaviour").setHeading();
 
+    new Setting(containerEl)
+      .setName("Open notes in")
+      .setDesc(
+        "Where a note opens when you click a period. Ctrl or Cmd click always " +
+          "opens a new tab, whatever this is set to."
+      )
+      .addDropdown((d) =>
+        d
+          .addOption("active", "Current pane")
+          .addOption("tab", "New tab")
+          .addOption("split", "Split pane")
+          .setValue(this.plugin.settings.openIn)
+          .onChange((v) => {
+            this.plugin.settings.openIn = v as OpenIn;
+            this.save();
+          })
+      );
+
     new Setting(containerEl).setName("Open daily note on startup").addToggle((t) =>
       t.setValue(this.plugin.settings.openDailyOnStartup).onChange((v) => {
         this.plugin.settings.openDailyOnStartup = v;
@@ -226,6 +255,39 @@ export class PeriodCalendarSettingTab extends PluginSettingTab {
         this.plugin.refreshViews();
       })
     );
+
+    new Setting(containerEl).setName("Finding existing notes").setHeading();
+
+    new Setting(containerEl)
+      .setName("Match notes with a title after the date")
+      .setDesc(
+        'Counts "20260727 Groceries" as that day\'s note. A separator is required ' +
+          "after the date, so trailing digits are not mistaken for a title."
+      )
+      .addToggle((t) =>
+        t.setValue(this.plugin.settings.matchTitleSuffix).onChange((v) => {
+          this.plugin.settings.matchTitleSuffix = v;
+          this.save();
+          this.plugin.rebuildIndex();
+        })
+      );
+
+    new Setting(containerEl)
+      .setName("Frontmatter date property")
+      .setDesc(
+        "Also match notes by a date in their frontmatter, regardless of filename. " +
+          "Leave empty to rely on filenames only."
+      )
+      .addText((t) =>
+        t
+          .setPlaceholder("date")
+          .setValue(this.plugin.settings.frontmatterProperty)
+          .onChange((v) => {
+            this.plugin.settings.frontmatterProperty = v.trim();
+            this.save();
+            this.plugin.rebuildIndex();
+          })
+      );
 
     new Setting(containerEl).setName("Migration").setHeading();
 

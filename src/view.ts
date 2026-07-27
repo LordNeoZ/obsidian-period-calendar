@@ -78,13 +78,28 @@ export class CalendarView extends ItemView {
       cls: "pc-title-part",
       text: this.cursor.format("MMMM"),
     });
+    this.markIfNoteExists(monthEl, "month", this.cursor);
     this.wirePeriod(monthEl, "month", () => this.cursor);
 
     const yearEl = title.createSpan({
       cls: "pc-title-part",
       text: this.cursor.format("YYYY"),
     });
+    this.markIfNoteExists(yearEl, "year", this.cursor);
     this.wirePeriod(yearEl, "year", () => this.cursor);
+  }
+
+  /** Adds the dot to any period that already has a note. */
+  private markIfNoteExists(
+    el: HTMLElement,
+    granularity: Granularity,
+    date: MomentLike
+  ) {
+    if (!this.plugin.settings.showDots) return;
+    if (!this.plugin.settings.periods[granularity].enabled) return;
+    if (!this.plugin.noteExists(date, granularity)) return;
+    el.addClass("pc-has-note");
+    el.createSpan({ cls: "pc-dot" });
   }
 
   // -------------------------------------------------------------------------
@@ -111,11 +126,13 @@ export class CalendarView extends ItemView {
       const tr = tbody.createEl("tr");
 
       if (s.showWeekNumbers) {
+        const weekStart = cursor.clone();
         const wkCell = tr.createEl("td", { cls: "pc-wk" });
         const label =
           s.week.mode === "iso" ? cursor.format("WW") : cursor.format("ww");
         wkCell.setText(label);
-        this.wirePeriod(wkCell, "week", ((d: MomentLike) => () => d)(cursor.clone()));
+        this.markIfNoteExists(wkCell, "week", weekStart);
+        this.wirePeriod(wkCell, "week", () => weekStart);
       }
 
       for (let i = 0; i < 7; i++) {
@@ -162,6 +179,7 @@ export class CalendarView extends ItemView {
       const label =
         g === "quarter" ? this.cursor.format("[Q]Q") : this.cursor.format("YYYY");
       const btn = bar.createEl("button", { cls: "pc-bar-btn", text: label });
+      this.markIfNoteExists(btn, g, this.cursor);
       this.wirePeriod(btn, g, () => this.cursor);
     }
   }

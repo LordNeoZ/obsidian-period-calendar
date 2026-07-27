@@ -44,7 +44,11 @@ That silent collision is what produces "unable to create new file" and duplicate
 - **Strict filename parsing**, so `Meeting notes` is never mistaken for a date.
 - **Commands for everything**, including opening the calendar view itself, and next/previous for each period.
 - **Open today's note on startup**, optional.
-- Templates per period, dots on days that already have notes, and a middle-click or Ctrl-click to open in a new tab.
+- **Finds notes that are not named exactly like the format.** Turn on title matching and `20260727 Groceries` counts as that day. Point it at a frontmatter property and notes are matched by their declared date, whatever the filename says.
+- **Dots on every period**, not just days — the week number, the month, the quarter and the year all show whether a note exists.
+- **URI support**: `obsidian://period-calendar?period=week&date=2026-07-27` opens that note from anywhere, including outside Obsidian.
+- Choose where notes open — current pane, new tab or split — with Ctrl or Cmd click always overriding it.
+- Templates per period, and a middle-click to open in a new tab.
 
 ---
 

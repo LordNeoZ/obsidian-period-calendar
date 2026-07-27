@@ -356,25 +356,96 @@ export function periodPath(
   return joinPath(config.folder, name) + ".md";
 }
 
+/** Separators allowed between a date prefix and a free-text title. */
+const TITLE_SEPARATORS = [" ", "-", "_", "."];
+
+function tryExact(
+  text: string,
+  format: string,
+  moment: MomentFactory
+): MomentLike | null {
+  const parsed = moment(text, format, true);
+  if (!parsed || !parsed.isValid()) return null;
+  // round-trip: if reformatting does not reproduce the input, it was not
+  // really this period. Keeps "2026-1-1" from passing as "2026-01-01".
+  if (parsed.format(format) !== text) return null;
+  return parsed;
+}
+
+/**
+ * How long a rendered date can be for a given format.
+ *
+ * Walking every position of a filename looking for a date prefix is what makes
+ * indexing a large vault slow: a name that will never match has to exhaust all
+ * of them before giving up. A format renders to a small set of lengths, so only
+ * those positions are worth testing.
+ *
+ * Every month is probed because month names vary in length ("May" against
+ * "September"), and two day numbers because days do too. The result is cached
+ * per format, so this runs once rather than once per file.
+ */
+const lengthCache = new Map<string, number[]>();
+
+function candidateLengths(format: string, moment: MomentFactory): number[] {
+  const cached = lengthCache.get(format);
+  if (cached) return cached;
+
+  const lengths = new Set<number>();
+  for (let month = 1; month <= 12; month++) {
+    for (const day of [1, 21]) {
+      const iso = `2026-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const m = moment(iso, "YYYY-MM-DD", true);
+      if (m && m.isValid()) lengths.add(m.format(format).length);
+    }
+  }
+  const out = Array.from(lengths).sort((a, b) => b - a); // longest first
+  lengthCache.set(format, out);
+  return out;
+}
+
 /**
  * Reads a filename as a period, or returns null.
  *
  * Strict parsing plus a round-trip check keeps notes like "Meeting notes"
  * from being read as dates.
+ *
+ * With `allowTitleSuffix`, a date followed by free text also counts, so
+ * "20260727 Groceries" resolves to that day. The longest valid prefix wins,
+ * and a separator is required after it — otherwise "202607271" would parse as
+ * a date with a stray digit.
  */
 export function parsePeriodFilename(
   basename: string,
   granularity: Granularity,
   config: PeriodConfig,
-  moment: MomentFactory
+  moment: MomentFactory,
+  allowTitleSuffix = false
 ): MomentLike | null {
   const fmt = config.format || DEFAULT_FORMATS[granularity];
   // a format may carry subfolders; only the last segment names the file
   const leaf = fmt.split("/").pop() as string;
-  const parsed = moment(basename, leaf, true);
-  if (!parsed || !parsed.isValid()) return null;
-  if (parsed.format(leaf) !== basename) return null;
-  return parsed;
+
+  const lengths = candidateLengths(leaf, moment);
+  // A name far longer than anything this format can render is not a date, and
+  // finding that out costs nothing compared to a strict parse. The margin
+  // covers formats whose length the probes may not have reproduced exactly.
+  const maxLen = (lengths.length > 0 ? lengths[0] : 40) + 4;
+
+  if (basename.length <= maxLen) {
+    const exact = tryExact(basename, leaf, moment);
+    if (exact) return exact;
+  }
+  if (!allowTitleSuffix) return null;
+
+  // only the lengths this format can actually produce, longest first so the
+  // longest valid date prefix wins
+  for (const len of lengths) {
+    if (len < 4 || len >= basename.length) continue;
+    if (!TITLE_SEPARATORS.includes(basename[len])) continue;
+    const hit = tryExact(basename.slice(0, len), leaf, moment);
+    if (hit) return hit;
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------

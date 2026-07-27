@@ -6,20 +6,24 @@ import {
   TFolder,
   Notice,
   WorkspaceLeaf,
+  debounce,
   normalizePath,
 } from "obsidian";
 
-import { now } from "./obsidian-moment.ts";
+import { now, momentFactory } from "./obsidian-moment.ts";
 
 import {
   GRANULARITIES,
   DEFAULT_FORMATS,
   periodPath,
+  parsePeriodFilename,
   startOfPeriod,
   shiftPeriod,
   importLegacyConfig,
+  joinPath,
   type Granularity,
   type MomentLike,
+  type PeriodConfig,
   type LegacyDailyNotes,
   type LegacyPeriodicNotes,
 } from "./periods.ts";
@@ -76,8 +80,27 @@ class ConfirmCreateModal extends Modal {
   }
 }
 
+/** period start (YYYY-MM-DD) -> path of the note that represents it */
+type PeriodIndex = Record<Granularity, Map<string, string>>;
+
+function emptyIndex(): PeriodIndex {
+  const idx = {} as PeriodIndex;
+  for (const g of GRANULARITIES) idx[g] = new Map<string, string>();
+  return idx;
+}
+
 export default class PeriodCalendarPlugin extends Plugin {
   settings: PluginSettings = defaultSettings();
+
+  /**
+   * Notes are not always named exactly like the format: they may carry a title
+   * after the date, or declare their date in frontmatter. Resolving that by
+   * walking the vault on every repaint would be wasteful, so it is indexed once
+   * and kept up to date from vault events.
+   */
+  private index: PeriodIndex = emptyIndex();
+
+  private reindex = debounce(() => this.rebuildIndex(), 400, true);
 
   async onload() {
     await this.loadSettings();
@@ -135,7 +158,33 @@ export default class PeriodCalendarPlugin extends Plugin {
       });
     }
 
+    // obsidian://period-calendar?period=week&date=2026-07-27
+    this.registerObsidianProtocolHandler("period-calendar", (params) => {
+      const g = (params.period ?? "day") as Granularity;
+      if (!GRANULARITIES.includes(g)) {
+        new Notice(`Unknown period "${params.period ?? ""}".`);
+        return;
+      }
+      let date = this.now();
+      if (params.date) {
+        const parsed = momentFactory(params.date, "YYYY-MM-DD", true);
+        if (!parsed.isValid()) {
+          new Notice(`Could not read date "${params.date}". Use YYYY-MM-DD.`);
+          return;
+        }
+        date = parsed;
+      }
+      void this.openPeriodNote(date, g);
+    });
+
+    // registered one by one: vault.on has a different signature per event
+    this.registerEvent(this.app.vault.on("create", () => this.reindex()));
+    this.registerEvent(this.app.vault.on("delete", () => this.reindex()));
+    this.registerEvent(this.app.vault.on("rename", () => this.reindex()));
+    this.registerEvent(this.app.metadataCache.on("changed", () => this.reindex()));
+
     this.app.workspace.onLayoutReady(() => {
+      this.rebuildIndex();
       if (this.settings.openDailyOnStartup && this.settings.periods.day.enabled) {
         void this.openPeriodNote(this.now(), "day");
       }
@@ -143,6 +192,65 @@ export default class PeriodCalendarPlugin extends Plugin {
   }
 
   onunload() {}
+
+  // -------------------------------------------------------------------------
+  // Index of existing notes
+  // -------------------------------------------------------------------------
+
+  /** Which period a file represents, or null if it represents none. */
+  private periodOf(
+    file: TFile,
+    granularity: Granularity,
+    cfg: PeriodConfig
+  ): string | null {
+    // the configured folder scopes the search; empty means the whole vault
+    const folder = normalizePath(joinPath(cfg.folder));
+    if (folder && folder !== "/" && !file.path.startsWith(folder + "/")) return null;
+
+    const byName = parsePeriodFilename(
+      file.basename,
+      granularity,
+      cfg,
+      momentFactory,
+      this.settings.matchTitleSuffix
+    );
+    if (byName) {
+      return startOfPeriod(byName, granularity, this.settings.week).format("YYYY-MM-DD");
+    }
+
+    const prop = this.settings.frontmatterProperty;
+    if (!prop) return null;
+    const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
+    const raw = fm?.[prop];
+    if (raw === undefined || raw === null) return null;
+    // frontmatter dates arrive as strings; take the leading ISO date
+    const text = String(raw).trim().slice(0, 10);
+    const parsed = momentFactory(text, "YYYY-MM-DD", true);
+    if (!parsed.isValid()) return null;
+    return startOfPeriod(parsed, granularity, this.settings.week).format("YYYY-MM-DD");
+  }
+
+  rebuildIndex() {
+    const idx = emptyIndex();
+    for (const file of this.app.vault.getMarkdownFiles()) {
+      for (const g of GRANULARITIES) {
+        const cfg = this.settings.periods[g];
+        if (!cfg.enabled) continue;
+        const key = this.periodOf(file, g, cfg);
+        // first match wins, so the canonical filename is not displaced by a
+        // later note that happens to carry the same date
+        if (key && !idx[g].has(key)) idx[g].set(key, file.path);
+      }
+    }
+    this.index = idx;
+    this.refreshViews();
+  }
+
+  /** Path of the note representing this period, if one already exists. */
+  private existingPath(date: MomentLike, granularity: Granularity): string | null {
+    const key = startOfPeriod(date, granularity, this.settings.week).format("YYYY-MM-DD");
+    return this.index[granularity].get(key) ?? null;
+  }
 
   // -------------------------------------------------------------------------
   private now(): MomentLike {
@@ -195,8 +303,7 @@ export default class PeriodCalendarPlugin extends Plugin {
 
   noteExists(date: MomentLike, granularity: Granularity): boolean {
     if (!this.settings.periods[granularity].enabled) return false;
-    const f = this.app.vault.getAbstractFileByPath(this.pathFor(date, granularity));
-    return f instanceof TFile;
+    return this.existingPath(date, granularity) !== null;
   }
 
   /** How today would look under a given format. Used by the settings preview. */
@@ -246,11 +353,21 @@ export default class PeriodCalendarPlugin extends Plugin {
       return;
     }
 
-    const path = this.pathFor(date, granularity);
-    const existing = this.app.vault.getAbstractFileByPath(path);
+    // an existing note may not be named exactly like the format, so the index
+    // is consulted before falling back to the canonical path
+    const found = this.existingPath(date, granularity);
+    if (found) {
+      const f = this.app.vault.getAbstractFileByPath(found);
+      if (f instanceof TFile) {
+        await this.reveal(f, opts);
+        return;
+      }
+    }
 
-    if (existing instanceof TFile) {
-      await this.reveal(existing, opts);
+    const path = this.pathFor(date, granularity);
+    if (this.app.vault.getAbstractFileByPath(path) instanceof TFile) {
+      const f = this.app.vault.getAbstractFileByPath(path) as TFile;
+      await this.reveal(f, opts);
       return;
     }
 
@@ -282,7 +399,14 @@ export default class PeriodCalendarPlugin extends Plugin {
   }
 
   private async reveal(file: TFile, opts: { newLeaf?: boolean }) {
-    const leaf = this.app.workspace.getLeaf(opts.newLeaf ? "tab" : false);
+    // an explicit ctrl/cmd click always wins over the configured default
+    const leaf = opts.newLeaf
+      ? this.app.workspace.getLeaf("tab")
+      : this.settings.openIn === "tab"
+        ? this.app.workspace.getLeaf("tab")
+        : this.settings.openIn === "split"
+          ? this.app.workspace.getLeaf("split")
+          : this.app.workspace.getLeaf(false);
     await leaf.openFile(file);
     this.refreshViews();
   }
